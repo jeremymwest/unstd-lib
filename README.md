@@ -1,7 +1,4 @@
-unstd-lib
+The Jinks C library
 =========
 
-The Unstandard ANSI C library
-
-git functionality test.
 
