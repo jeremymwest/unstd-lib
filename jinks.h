@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 /* If stdbool.h is included on your system */
 #include <stdbool.h>
@@ -41,9 +42,39 @@ typedef struct jx_buffer jx_buffer;
 // Structs and unions
 
 struct jx_buffer {
-  size_t capacity;
+  size_t size;
   unsigned char *data;
 };
 
+
+/******************************************************************************/
+
+// Unit testing support
+
+#ifdef JX_TESTING
+
+typedef struct {
+  const char *file, *expr, *msg;
+  int line;
+} jx_test;
+
+extern const jx_test JX_PASS;
+
+#define JX_EXPECT(expr, msg) \
+  if (!(expr)) { \
+    jx_test result = { \
+      __FILE__, #expr, msg, __LINE__ }; \
+    return result; \
+  }
+
+#define JX_FAIL(msg) \
+  JX_EXPECT(false, msg)
+
+struct unit_test {
+  const char *name;
+  jx_test (*func)(void);
+};
+
+#endif
 
 

@@ -11,7 +11,9 @@ void jx_buffer_destroy(void *buffer);
 
 void jx_buffer_resize(jx_buffer *self, size_t size);
 
-size_t jx_buffer_capacity(const jx_buffer *self);
+size_t jx_buffer_size(const jx_buffer *self);
+
+void* jx_buffer_get(const jx_buffer *self, size_t index);
 
 
 
