@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /* If stdbool.h is included on your system */
 #include <stdbool.h>

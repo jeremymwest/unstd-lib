@@ -38,6 +38,25 @@ size_t jx_buffer_capacity(const jx_buffer *self) {
   return self->capacity;
 }
 
+#ifdef JX_TESTING
 
+bool jx_test_buffer_all() {
+  return false;
+}
+
+bool jx_test_buffer_some() {
+  return false;
+}
+
+bool jx_test_buffer_blah() {
+  return false;
+}
+
+bool jx_test_buffer_foo() {
+  return false;
+}
+
+
+#endif
 
 

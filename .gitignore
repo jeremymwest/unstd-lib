@@ -1,5 +1,7 @@
-# Tags files
+# Specific files
 tags
+jinks_test
+test_list.in
 
 # Object files
 *.o
