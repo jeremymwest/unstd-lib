@@ -3,6 +3,8 @@
  * Copyright (c) 2015 Jeremy West. Distributed under the MIT license.
  *
  *****************************************************************************/
+#ifndef JINKS_H
+#define JINKS_H
 
 #include <assert.h>
 #include <stdlib.h>
@@ -18,7 +20,12 @@
 #define false 0
 */
 
-typedef void (*jx_destructor)(void *arg);
+/******************************************************************************/
+
+typedef void (*jx_destructor)(void *item);
+void jx_destroy(jx_destructor dstr, void *item);
+
+#define JX_CLEAR(x) memset(x, 0, sizeof *x);
 
 /******************************************************************************
  * Type definitions
@@ -35,21 +42,45 @@ typedef void (*jx_destructor)(void *arg);
  *
  *****************************************************************************/
 
-// Typedefs
-typedef struct jx_buffer jx_buffer;
+/* Structs and unions */
 
-
-// Structs and unions
-
-struct jx_buffer {
+typedef struct {
   size_t size;
   unsigned char *data;
-};
+} jx_buffer;
 
+typedef struct {
+  struct pointer_data {
+    bool free_item;
+    int refs;
+    void *item;
+    jx_destructor dstr;
+  } *data;
+} jx_pointer;
+
+typedef struct {
+  int start, stride, count;
+  jx_pointer ptr;
+} jx_slice;
 
 /******************************************************************************/
 
-// Unit testing support
+/* Validation Macros */
+
+#define JX_NOT_NULL(x) assert(x && "Unexpected NULL.")
+#define JX_RANGE(x, min, max) assert(x >= min && x < max \
+    && "Argument out of bounds.")
+#define JX_INTERVAL(x, sz, min, max) assert(x >= min && sz >= 0 && \
+    x + sz <= max && "Interval out of bounds.")
+#define JX_POSITIVE(x) assert(x > 0 && "Argument must be positive.")
+#define JX_NOT_NEG(x) assert(x >= 0 && "Argument can't be negative.")
+#define JX_ARRAY_SZ(sz, arr) \
+  JX_NOT_NEG(sz); assert((sz == 0) == (arr == NULL) && \
+    "Invalid object: array size is incorrect.")
+
+/******************************************************************************/
+
+/* Unit testing support */
 
 #ifdef JX_TESTING
 
@@ -77,4 +108,6 @@ struct unit_test {
 
 #endif
 
+
+#endif
 

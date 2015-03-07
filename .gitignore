@@ -1,7 +1,10 @@
 # Specific files
 tags
 jinks_test
-test_list.in
+list_of_tests.h
+
+# Editor files
+*.swp
 
 # Object files
 *.o

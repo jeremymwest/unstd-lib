@@ -40,7 +40,6 @@ void jx_buffer_destroy(void *buffer) {
 }
 
 void jx_buffer_resize(jx_buffer *self, size_t size) {
-
   VALID(self);
 
   if (size > 0) {
@@ -127,5 +126,7 @@ jx_test buffer_get() {
 }
 
 #endif
+
+
 
 
