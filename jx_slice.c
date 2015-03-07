@@ -10,7 +10,7 @@
   JX_NOT_NULL(self); \
   JX_NOT_NEG(self->count)
 
-void jx_slice_init(jx_slice *out_self, size_t itemsize, int count) {
+jx_result jx_slice_init(jx_slice *out_self, size_t itemsize, int count) {
   JX_NOT_NULL(out_self);
   JX_POSITIVE(itemsize);
   JX_NOT_NEG(count);
@@ -18,8 +18,10 @@ void jx_slice_init(jx_slice *out_self, size_t itemsize, int count) {
   out_self->start = 0;
   out_self->stride = itemsize;
   out_self->count = count;
-  jx_pointer_init(&out_self->ptr, itemsize*count, NULL);
+  JX_TRY(jx_pointer_init(&out_self->ptr, itemsize*count, NULL));
   VALID(out_self);
+
+  return JX_OK;
 }
 
 void jx_slice_destroy(void *slice) {

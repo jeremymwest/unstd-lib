@@ -7,11 +7,11 @@
 #define JX_BUFFER_H
 #include "jinks.h"
 
-void jx_buffer_init(jx_buffer *out_self, size_t initial_size);
+jx_result jx_buffer_init(jx_buffer *out_self, size_t initial_size);
 
 void jx_buffer_destroy(void *buffer);
 
-void jx_buffer_resize(jx_buffer *self, size_t size);
+jx_result jx_buffer_resize(jx_buffer *self, size_t size);
 
 size_t jx_buffer_size(const jx_buffer *self);
 

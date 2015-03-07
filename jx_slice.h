@@ -7,7 +7,7 @@
 #define JX_SLICE_H
 #include "jinks.h"
 
-void jx_slice_init(jx_slice *out_self, size_t itemsize, int count);
+jx_result jx_slice_init(jx_slice *out_self, size_t itemsize, int count);
 
 void jx_slice_destroy(void *slice);
 

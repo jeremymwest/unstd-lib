@@ -12,6 +12,34 @@ void jx_destroy(jx_destructor dstr, void *item) {
   }
 }
 
+const char* jx_get_error_message(jx_result result) {
+  switch (result) {
+    case JX_OK: return "Operation succeeded.";
+    case JX_OUT_OF_MEMORY: return "Insufficient memory. Cannot proceed.";
+    default: return "An unknown error has occurred. This is bug.";
+  }
+}
+
+jx_result jx_alloc(void **data, size_t sz) {
+  void *newdata;
+  JX_NOT_NULL(data);
+
+  /* try to get a resized block (or a new one if the pointer is NULL */
+  if (sz) {
+    newdata = realloc(*data, sz);
+    if (newdata) {   /* success, we're good */
+      *data = newdata;
+      return JX_OK;
+    } else {
+      /* leave the pointer alone, but indicate out of memory. */
+      return JX_OUT_OF_MEMORY;
+    }
+  } else {
+    JX_FREE_AND_NULL(*data);
+    return JX_OK;   /* no memory requested: NULL array. */
+  }
+}
+
 #ifdef JX_TESTING
 
 /* the value that represents a pass */

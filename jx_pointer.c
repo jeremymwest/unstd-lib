@@ -9,18 +9,18 @@
   JX_NOT_NULL(self->data); \
   JX_NOT_NEG(self->data->refs)
 
-void* jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor dstr) {
+jx_result jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor dstr) {
+  void *data;
   JX_NOT_NULL(out_self);
   
-  out_self->data = malloc(sizeof *out_self->data);
-  if (sz > 0) {
-    out_self->data->item = malloc(sz);
-  } else {
-    out_self->data->item = NULL;
-  }
+  data = out_self->data = NULL;
+  JX_TRY(jx_alloc(&data, sizeof *out_self->data));
+  out_self->data = data;
+  out_self->data->item = NULL;
   out_self->data->dstr = dstr;
   out_self->data->refs = 1;
-  return out_self->data->item;
+  JX_TRY(jx_alloc(&out_self->data->item, sz));
+  return JX_OK;
 }
 
 void jx_pointer_clone(const jx_pointer *self, jx_pointer *out_clone) {
@@ -43,11 +43,8 @@ void jx_pointer_destroy(void *pointer) {
     /* call the destructor */
     jx_destroy(self->data->dstr, self->data->item);
     /* free the block of memory */
-    free(self->data->item);
-    /* zero the data object, this way other pointers will know if the 
-     * object got destroyed from underneath them (shouldn't happen). */
-    JX_CLEAR(self->data);
-    free(self->data);
+    JX_FREE_AND_NULL(self->data->item);
+    JX_FREE_AND_NULL(self->data);
   }
   JX_CLEAR(self); /* in either case, break connection to item */
 }
@@ -69,7 +66,9 @@ jx_test pointer_clone_count() {
   double *vals;
   
   /* create a pointer object with enough space for a buffer */
-  buf = jx_pointer_init(ptr, sizeof(jx_buffer), jx_buffer_destroy);
+  JX_EXPECT(JX_OK == jx_pointer_init(ptr, sizeof(jx_buffer), jx_buffer_destroy),
+      "Error creating pointer object: out of memory?");
+  buf = jx_pointer_get(ptr);
 
   /* initialize the buffer object */
   jx_buffer_init(buf, 2*sizeof(double));
@@ -108,7 +107,11 @@ static void destroy_int(void *item) {
 }
 
 jx_test pointer_calls_destroy() {
-  int *val = jx_pointer_init(ptr, sizeof(int), destroy_int);
+  int *val;
+
+  JX_EXPECT(JX_OK == jx_pointer_init(ptr, sizeof(int), destroy_int),
+      "Error creating pointer: out of memory?");
+  val = jx_pointer_get(ptr);
   JX_EXPECT(val != NULL, "Unexpected NULL");
   *val = 23;
 

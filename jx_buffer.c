@@ -19,59 +19,54 @@ static bool is_valid_size(size_t sz) {
   return test == sz;
 }
 
-void jx_buffer_init(jx_buffer *out_self, size_t initial_size) {
+jx_result jx_buffer_init(jx_buffer *out_self, size_t initial_size) {
   assert(out_self && "NULL pointer.");
 
   out_self->size = 0;
   out_self->data = NULL;
-  if (initial_size > 0) {
-    jx_buffer_resize(out_self, initial_size);
-  }
+  JX_TRY(jx_buffer_resize(out_self, initial_size));
+  return JX_OK;
 }
 
 void jx_buffer_destroy(void *buffer) {
   jx_buffer *self = buffer;
 
   if (self) {
-    free(self->data);
-    self->data = NULL;
+    JX_FREE_AND_NULL(self->data);
     self->size = 10; /* set to an invalid state for debugging purposes. */
   }
 }
 
-void jx_buffer_resize(jx_buffer *self, size_t size) {
+jx_result jx_buffer_resize(jx_buffer *self, size_t size) {
+  size_t newsz;
+
   VALID(self);
 
   if (size > 0) {
-    if (!self->size) {
-      self->size = 1;
-    }
-    while (self->size > size) {
-      self->size >>= 1; // divide by two until smaller or equal
-    }
-    while (self->size < size) {
-      self->size <<= 1; // multiply by two until at least as large
-    }
-    self->data = realloc(self->data, self->size);
-  } else {
-    self->size = 0;
-    free(self->data);
-    self->data = NULL;
-  }
+    newsz = self->size ? self->size : 1;
+    while (newsz > size) newsz >>= 1;
+    while (newsz < size) newsz <<= 1;
+  } else newsz = 0;
+
+  JX_TRY(jx_alloc(&self->data, newsz));
+  /* succeeded, so set size field */
+  self->size = newsz;
+  return JX_OK;
 }
 
 size_t jx_buffer_size(const jx_buffer *self) {
   VALID(self);
-
   return self->size;
 }
 
 void* jx_buffer_get(const jx_buffer *self, size_t index)
 {
+  unsigned char *arr;
   VALID(self);
   assert(index < self->size && "Invalid index.");
 
-  return &self->data[index];
+  arr = self->data;
+  return &arr[index];
 }
 
 #ifdef JX_TESTING
