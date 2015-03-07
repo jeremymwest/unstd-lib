@@ -7,10 +7,13 @@ LIB=jinks
 TESTFLAGS=$(CFLAGS) -g -DJX_TESTING
 TEST_OBJS=$(SOURCES:.c=_test.o)
 
-.PHONY=clean test
+.PHONY=clean test debug
 
 test : $(TEST_OBJS) $(LIB)_test
 	-valgrind --leak-check=full --show-leak-kinds=all ./$(LIB)_test
+
+debug: $(TEST_OBJS) $(LIB)_test
+	gdb -tui ./$(LIB)_test
 
 $(LIB).a : $(OBJECTS)
 	ar -r $(LIB).a $(OBJECTS)
