@@ -6,8 +6,9 @@ OBJECTS=$(SOURCES:.c=.o)
 LIB=jinks
 TESTFLAGS=$(CFLAGS) -g -DJX_TESTING
 TEST_OBJS=$(SOURCES:.c=_test.o)
+RELFLAGS=$(CFLAGS) -O3 -DNDEBUG
 
-.PHONY=clean test debug
+.PHONY=clean test debug lib
 
 test : $(TEST_OBJS) $(LIB)_test
 	-valgrind --leak-check=full --show-leak-kinds=all ./$(LIB)_test
@@ -15,11 +16,13 @@ test : $(TEST_OBJS) $(LIB)_test
 debug: $(TEST_OBJS) $(LIB)_test
 	gdb -tui ./$(LIB)_test
 
+lib: $(LIB).a
+
 $(LIB).a : $(OBJECTS)
 	ar -r $(LIB).a $(OBJECTS)
 
 %.o : %.c %.h $(LIB).h
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(RELFLAGS) -o $@ $<
 
 list_of_tests.h : $(SOURCES)
 	sed -n 's/^jx_test \(.*\)().*$$/\1/p' $(SOURCES) | sort | uniq > unit_tests.tmp
