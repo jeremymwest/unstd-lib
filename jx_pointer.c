@@ -11,16 +11,19 @@
 
 jx_result jx_pointer_init(jx_pointer *out_self, size_t sz, 
     jx_destructor destroy) {
-  void *data;
   JX_NOT_NULL(out_self);
   
-  data = out_self->data = NULL;
-  JX_TRY(jx_alloc(&data, sizeof *out_self->data));
-  out_self->data = data;
-  out_self->data->item = NULL;
+  out_self->data = malloc(sizeof *out_self->data);
+  if (NULL == out_self->data) return JX_OUT_OF_MEMORY;
+
+  out_self->data->item = malloc(sz);
+  if (NULL == out_self->data->item) { 
+    free(out_self->data); out_self->data = NULL;
+    return JX_OUT_OF_MEMORY;
+  }
+
   out_self->data->destroy = destroy;
   out_self->data->refs = 1;
-  JX_TRY(jx_alloc(&out_self->data->item, sz));
   return JX_OK;
 }
 
@@ -44,10 +47,11 @@ void jx_pointer_destroy(void *pointer) {
     /* call the destructor */
     jx_destroy(self->data->destroy, self->data->item);
     /* free the block of memory */
-    JX_FREE_AND_NULL(self->data->item);
-    JX_FREE_AND_NULL(self->data);
+    free(self->data->item);
+    memset(self->data, 0, sizeof *self->data);
+    free(self->data);
   }
-  JX_CLEAR(self); /* in either case, break connection to item */
+  memset(self, 0, sizeof *self);
 }
 
 void* jx_pointer_get(const jx_pointer *self) {
@@ -59,43 +63,33 @@ void* jx_pointer_get(const jx_pointer *self) {
 
 static jx_pointer ptr_var, *ptr = &ptr_var;
 static jx_pointer ptr_var2, *ptr2 = &ptr_var2;
-static jx_buffer *buf;
-
-#include "jx_buffer.h"
 
 jx_test pointer_clone_count() {
   double *vals;
   
-  /* create a pointer object with enough space for a buffer */
-  JX_EXPECT(JX_OK == jx_pointer_init(ptr, sizeof(jx_buffer), jx_buffer_destroy),
-      "Error creating pointer object: out of memory?");
-  buf = jx_pointer_get(ptr);
-
-  /* initialize the buffer object */
-  jx_buffer_init(buf, 2*sizeof(double));
-  vals = jx_buffer_at(buf, 0);
+  JX_CATCH(jx_pointer_init(ptr, 2*sizeof(double), NULL));
+  vals = jx_pointer_get(ptr);
   vals[0] = 1.5;
   vals[1] = -2.5;
 
   /* clone the pointer */
   jx_pointer_clone(ptr, ptr2);
 
-  JX_EXPECT(buf == jx_pointer_get(ptr2),
+  JX_EXPECT(vals == jx_pointer_get(ptr2),
       "The new pointer is pointing to the wrong object.");
 
   /* now destroy the original pointer.  */
   jx_pointer_destroy(ptr);
 
   /* make sure the buffer is still there */
-  JX_EXPECT(buf == jx_pointer_get(ptr2),
-      "The buffer was deleted when the original pointer was destroyed.");
+  JX_EXPECT(vals == jx_pointer_get(ptr2),
+      "The data was deleted when the original pointer was destroyed.");
 
-  vals = jx_buffer_at(buf, 0);
   JX_EXPECT(vals[0] == 1.5 && vals[1] == -2.5, 
-      "The contents of the buffer changed.");
+      "The contents of the data changed.");
 
   jx_pointer_destroy(ptr2);
-  buf = NULL;
+  vals = NULL;
   return JX_PASS;
 }
 

@@ -29,7 +29,7 @@ void jx_slice_destroy(void *slice) {
   VALID(self);
 
   jx_pointer_destroy(&self->ptr);
-  JX_CLEAR(self);
+  memset(self, 0, sizeof *self);
 }
 
 int jx_slice_count(const jx_slice *self) {

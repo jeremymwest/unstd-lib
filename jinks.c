@@ -31,20 +31,6 @@ const char* jx_get_error_message(jx_result result) {
   }
 }
 
-jx_result jx_alloc(void **data, size_t sz) {
-  void *newdata;
-  JX_NOT_NULL(data); /* we must have been given a pointer to allocate to */
-
-  /* try to get a resized block (or a new one if the pointer is NULL */
-  newdata = realloc(*data, sz);
-  if (sz && NULL == newdata) {   /* requested a non-zero block and failed */
-    return JX_OUT_OF_MEMORY;
-  } else {
-    *data = newdata;
-    return JX_OK;
-  }
-}
-
 void jx_set_item(jx_outptr out_ptr, void *item) {
   if (out_ptr) { /* if NULL, they don't want the reference passed out */
     *(void**)out_ptr = item;

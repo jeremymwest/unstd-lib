@@ -4,10 +4,10 @@
  *
  ******************************************************************************/
 #include "jx_vector.h"
-#include "jx_buffer.h"
 #define VALID(self) \
-  JX_NOT_NEG(self->count); \
-  JX_POSITIVE(self->itemsize)
+  JX_NOT_NEG(self->size); \
+  JX_POSITIVE(self->isz); \
+  JX_ARRAY_SZ(self->cap, self->data)
 
 jx_result jx_vector_init(jx_vector *out_self, size_t isz, int capacity,
     jx_destructor destroy) {
@@ -16,11 +16,15 @@ jx_result jx_vector_init(jx_vector *out_self, size_t isz, int capacity,
    JX_POSITIVE(isz);
    JX_NOT_NEG(capacity);
 
-   out_self->itemsize = isz;
    out_self->destroy = destroy;
-   out_self->count = 0;
+   out_self->isz = isz;
+   out_self->size = 0;
+   out_self->cap = 0;
+   out_self->data = NULL;
 
-   return jx_buffer_init(&out_self->buffer, isz*capacity);
+   VALID(out_self);
+
+   return jx_vector_reserve(out_self, capacity);
 }
 
 void jx_vector_destroy(void *vector) {
@@ -28,47 +32,64 @@ void jx_vector_destroy(void *vector) {
   VALID(self);
 
   jx_vector_clear(self);
-  jx_buffer_destroy(&self->buffer);
-
-  JX_CLEAR(self);
+  free(self->data);
+  memset(self, 0, sizeof *self);
 }
 
 /******************************************************************************/
 
 bool jx_vector_isempty(const jx_vector *self) {
   VALID(self);
-
-  return !self->count;
+  return !self->size;
 }
 
 int jx_vector_size(const jx_vector *self) {
   VALID(self);
-
-  return self->count;
+  return self->size;
 }
 
 int jx_vector_capacity(const jx_vector *self) {
   VALID(self);
-
-  return jx_buffer_size(&self->buffer) / self->itemsize;
+  return self->cap / self->isz;
 }
 
 jx_result jx_vector_reserve(jx_vector *self, int num) {
+  size_t req, cap;
+  void *newdata;
+
   VALID(self);
   JX_NOT_NEG(num);
 
-  /* only resize if the request is larger than current size */
-  if (num > self->count) {  
-    size_t cap = num*self->itemsize;
-    return jx_buffer_resize(&self->buffer, cap);
+  req = num*self->isz;
+  cap = self->cap;
+  while (cap < req) cap = (cap ? cap << 1 : 1);
+  if (cap > self->cap) {
+    newdata = realloc(self->data, cap);
+    if (NULL == newdata) return JX_OUT_OF_MEMORY;
+    self->cap = cap;
+    self->data = newdata;
   }
+
   return JX_OK;
 }
 
 jx_result jx_vector_shrink(jx_vector *self) {
+  size_t req, cap;
+  void *newdata;
+
   VALID(self);
 
-  return jx_buffer_resize(&self->buffer, self->count*self->itemsize);
+  req = self->isz * self->size;
+  cap = self->cap;
+  while ((cap >> 1)  > req) cap >>= 1;
+  if (cap < self->cap) {
+    newdata = realloc(self->data, cap);
+    if (NULL == newdata) return JX_OUT_OF_MEMORY;
+    self->cap = cap;
+    self->data = newdata;
+  }
+
+  return JX_OK;
 }
 
 /******************************************************************************/
@@ -78,31 +99,20 @@ void* jx_vector_front(const jx_vector *self) {
 }
 
 void* jx_vector_back(const jx_vector *self) {
-  return jx_vector_at(self, self->count-1);
+  return jx_vector_at(self, self->size-1);
 }
-
 
 void* jx_vector_at(const jx_vector *self, int i) {
   VALID(self);
-  JX_RANGE(i, -self->count, self->count);
+  JX_RANGE(i, -self->size, self->size);
 
-  i = (i >= 0 ? i : self->count + i);
-  return jx_buffer_at(&self->buffer, i*self->itemsize);
-}
-
-void jx_vector_set(jx_vector *self, int i, int num, const void *item) {
-  void *dest;
-  VALID(self);
-  JX_INTERVAL(i, num, -self->count, self->count);
-
-  i = (i >= 0 ? i : self->count + i);
-  dest = jx_buffer_at(&self->buffer, i*self->itemsize);
-  memcpy(dest, item, num*self->itemsize);
+  i = (i >= 0 ? i : self->size + i);
+  return &self->data[i*self->isz];
 }
 
 void* jx_vector_data(const jx_vector *self) {
   VALID(self);
-  return jx_buffer_data(&self->buffer);
+  return self->data;
 }
 
 /******************************************************************************/
@@ -116,25 +126,33 @@ jx_result jx_vector_append(jx_vector *self, int num, jx_outptr out_ptr) {
   VALID(self);
   JX_POSITIVE(num);
 
-  self->count += num;
-  JX_TRY(jx_buffer_resize(&self->buffer, self->count * self->itemsize));
-  JX_SET(out_ptr, jx_buffer_at(&self->buffer, 
-        (self->count-num)*self->itemsize));
-  
+  JX_TRY(jx_vector_reserve(self, self->size + num));
+  JX_SET(out_ptr, &self->data[self->size*self->isz]);
+  self->size += num;
   return JX_OK;
 }
 
 jx_result jx_vector_insert(jx_vector *self, int i, int num, jx_outptr out_ptr) {
+  void *start, *end;
+  size_t bytes;
+
   VALID(self);
   JX_POSITIVE(num);
-  JX_RANGE(i, -self->count, self->count+1);
+  JX_RANGE(i, -self->size, self->size+1);
 
-  i = (i >= 0 ? i : self->count + i);
-  self->count += num;
-  JX_TRY(jx_buffer_reserve(&self->buffer, self->count*self->itemsize));
-  /* slide items over from index i to create space for the inserted items */
-  jx_buffer_move_tail(&self->buffer, i*self->itemsize, num*self->itemsize);
-  JX_SET(out_ptr, jx_buffer_at(&self->buffer, i*self->itemsize));
+  i = (i >= 0 ? i : self->size + i);
+  JX_TRY(jx_vector_reserve(self, self->size + num));
+
+  /* calculate the size of the block to move: this is safe since
+   * we already asserted that i <= self->count. */
+  start = &self->data[i*self->isz];
+  end = &self->data[(i+num)*self->isz];
+  bytes = self->isz*(self->size - i);
+  if (bytes > 0) {
+    memmove(end, start, bytes);
+  }
+  JX_SET(out_ptr, start);
+  self->size += num;
 
   return JX_OK;
 }
@@ -142,21 +160,26 @@ jx_result jx_vector_insert(jx_vector *self, int i, int num, jx_outptr out_ptr) {
 /******************************************************************************/
 
 void jx_vector_remove(jx_vector *self, int i, int num) {
+  void* start, *end;
+  size_t bytes;
+
   VALID(self);
-  JX_INTERVAL(i, num, -self->count, self->count);
+  JX_INTERVAL(i, num, -self->size, self->size);
+  JX_POSITIVE(num);
 
-  if (num > 0) {
-    i = (i >= 0 ? i : i + self->count);
-    self->count -= num;
+  i = (i >= 0 ? i : self->size + i);
+  start = &self->data[i*self->isz];
+  end = &self->data[(i+num)*self->isz];
 
-    /* call destructor on all removed items. */
-    jx_destroy_range(self->destroy, num, self->itemsize,
-        jx_buffer_at(&self->buffer, i*self->itemsize));
+  jx_destroy_range(self->destroy, num, self->isz, start);
 
-    jx_buffer_move_tail(&self->buffer, (i+num)*self->itemsize,
-        -num*((int)self->itemsize));
-    jx_buffer_resize(&self->buffer, self->count*self->itemsize);
+  /* how large is the block that has to move? This is safe
+   * since we asserted that i + num <= self->count in JX_INTERVAL. */
+  bytes = self->isz*(self->size - (i + num));
+  if (bytes > 0) {
+    memmove(start, end, bytes);
   }
+  self->size -= num;
 }
 
 void jx_vector_pop_back(jx_vector *self, int num) {
@@ -167,10 +190,8 @@ void jx_vector_clear(jx_vector *self) {
   VALID(self);
 
   /* call destructor on all items */
-  jx_destroy_range(self->destroy, self->count, self->itemsize, 
-      jx_buffer_data(&self->buffer));
-
-  self->count = 0;
+  jx_destroy_range(self->destroy, self->size, self->isz, self->data);
+  self->size = 0;
 }
 
 /******************************************************************************/
@@ -227,7 +248,7 @@ static jx_test check_vector_contents(jx_vector *self) {
 
 jx_test vector_append() {
   jx_test results;
-  int i, *val = NULL;
+  int *val = NULL;
 
   JX_CATCH(jx_vector_init(vec, sizeof(int), 0, NULL));
 
@@ -250,7 +271,7 @@ jx_test vector_append() {
 
 jx_test vector_prepend_and_insert() {
   jx_test results;
-  int i, *val = NULL;
+  int *val = NULL;
 
   JX_CATCH(jx_vector_init(vec, sizeof(int), 0, NULL));
 
@@ -288,7 +309,6 @@ static void kill_int(void *item) {
 }
 
 jx_test vector_remove() {
-  jx_test results;
   int i, *val = NULL;
 
   remove_counts = 0;
@@ -333,11 +353,11 @@ jx_test vector_remove() {
 
 jx_test vector_pop_back() {
   jx_test results;
-  int vals[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  int *data, vals[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
   JX_CATCH(jx_vector_init(vec, sizeof(int), 0, NULL));
-  JX_CATCH(jx_vector_append(vec, 10, NULL));
-  jx_vector_set(vec, 0, 10, vals);
+  JX_CATCH(jx_vector_append(vec, 10, &data));
+  memcpy(data, vals, sizeof vals);
 
   jx_vector_pop_back(vec, 4);
   JX_EXPECT(6 == jx_vector_size(vec), "Incorrect vector size.");
@@ -348,11 +368,11 @@ jx_test vector_pop_back() {
 }
 
 jx_test vector_clear() {
-  int vals[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  int *data, vals[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
   JX_CATCH(jx_vector_init(vec, sizeof(int), 0, NULL));
-  JX_CATCH(jx_vector_append(vec, 10, NULL));
-  jx_vector_set(vec, 0, 10, vals);
+  JX_CATCH(jx_vector_append(vec, 10, &data));
+  memcpy(data, vals, sizeof vals);
 
   jx_vector_clear(vec);
   JX_EXPECT(0 == jx_vector_size(vec), "Incorrect vector size.");

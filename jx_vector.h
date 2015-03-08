@@ -34,8 +34,6 @@ void* jx_vector_back(const jx_vector *self);
 
 void* jx_vector_at(const jx_vector *self, int i);
 
-void jx_vector_set(jx_vector *self, int i, int num, const void *items);
-
 void* jx_vector_data(const jx_vector *self);
 
 /******************************************************************************/

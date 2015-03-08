@@ -20,6 +20,7 @@
 #define false 0
 */
 
+
 /******************************************************************************/
 /* Error codes: The library is designed to minimize the number of functions
  * that may return an error and to minimize the amount of error checking done
@@ -75,11 +76,6 @@ typedef void (*jx_destructor)(void *item);
  ******************************************************************************/
 
 typedef struct {
-  int size;
-  void *data;
-} jx_buffer;
-
-typedef struct {
   struct pointer_data {
     bool free_item;
     int refs;
@@ -94,10 +90,10 @@ typedef struct {
 } jx_slice;
 
 typedef struct {
-  size_t itemsize;
-  int count;
   jx_destructor destroy;
-  jx_buffer buffer;
+  size_t isz, cap;
+  int size;
+  unsigned char *data;
 } jx_vector;
 
 /******************************************************************************/
@@ -126,13 +122,6 @@ typedef struct {
 
 /* Other internal helper functions and macros that should be ignored by
  * consumers. */
-
-/* zero out the contents of x (whatever its size) */
-#define JX_CLEAR(x) \
-  memset(x, 0, sizeof *x)
-
-#define JX_FREE_AND_NULL(ptr) \
-  free(ptr); ptr = NULL
 
 /* call a function that returns a possible error code (jx_result). If it
  * fails, bubble the error code up the call-stack (by returning). Otherwise,
