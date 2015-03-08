@@ -9,7 +9,8 @@
   JX_NOT_NULL(self->data); \
   JX_NOT_NEG(self->data->refs)
 
-jx_result jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor dstr) {
+jx_result jx_pointer_init(jx_pointer *out_self, size_t sz, 
+    jx_destructor destroy) {
   void *data;
   JX_NOT_NULL(out_self);
   
@@ -17,7 +18,7 @@ jx_result jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor dstr) {
   JX_TRY(jx_alloc(&data, sizeof *out_self->data));
   out_self->data = data;
   out_self->data->item = NULL;
-  out_self->data->dstr = dstr;
+  out_self->data->destroy = destroy;
   out_self->data->refs = 1;
   JX_TRY(jx_alloc(&out_self->data->item, sz));
   return JX_OK;
@@ -41,7 +42,7 @@ void jx_pointer_destroy(void *pointer) {
   /* no more references, clean pointer object. */
   if (--self->data->refs <= 0) {
     /* call the destructor */
-    jx_destroy(self->data->dstr, self->data->item);
+    jx_destroy(self->data->destroy, self->data->item);
     /* free the block of memory */
     JX_FREE_AND_NULL(self->data->item);
     JX_FREE_AND_NULL(self->data);
@@ -72,7 +73,7 @@ jx_test pointer_clone_count() {
 
   /* initialize the buffer object */
   jx_buffer_init(buf, 2*sizeof(double));
-  vals = jx_buffer_get(buf, 0);
+  vals = jx_buffer_at(buf, 0);
   vals[0] = 1.5;
   vals[1] = -2.5;
 
@@ -89,7 +90,7 @@ jx_test pointer_clone_count() {
   JX_EXPECT(buf == jx_pointer_get(ptr2),
       "The buffer was deleted when the original pointer was destroyed.");
 
-  vals = jx_buffer_get(buf, 0);
+  vals = jx_buffer_at(buf, 0);
   JX_EXPECT(vals[0] == 1.5 && vals[1] == -2.5, 
       "The contents of the buffer changed.");
 

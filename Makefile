@@ -11,6 +11,7 @@ RELFLAGS=$(CFLAGS) -O3 -DNDEBUG
 .PHONY=clean test debug lib
 
 test : $(TEST_OBJS) $(LIB)_test
+	clear  #this is a cheat to start the testing with a clean screen
 	-valgrind --leak-check=full --show-leak-kinds=all ./$(LIB)_test
 
 debug: $(TEST_OBJS) $(LIB)_test

@@ -5,10 +5,21 @@
  ******************************************************************************/
 #include "jinks.h"
 
-void jx_destroy(jx_destructor dstr, void *item) {
+void jx_destroy(jx_destructor destroy, void *item) {
   /* NULL destructor is a no-op, NULL item should be ignored. */
-  if (dstr && item) {
-    dstr(item);
+  if (destroy && item) {
+    destroy(item);
+  }
+}
+
+void jx_destroy_range(jx_destructor destroy, int count, size_t sz, 
+    void *items) {
+  if (destroy && items && count > 0 && sz > 0) {
+    unsigned char *data = items;
+    while (count-- > 0) {
+      destroy(data);
+      data += sz;
+    }
   }
 }
 
@@ -22,23 +33,25 @@ const char* jx_get_error_message(jx_result result) {
 
 jx_result jx_alloc(void **data, size_t sz) {
   void *newdata;
-  JX_NOT_NULL(data);
+  JX_NOT_NULL(data); /* we must have been given a pointer to allocate to */
 
   /* try to get a resized block (or a new one if the pointer is NULL */
-  if (sz) {
-    newdata = realloc(*data, sz);
-    if (newdata) {   /* success, we're good */
-      *data = newdata;
-      return JX_OK;
-    } else {
-      /* leave the pointer alone, but indicate out of memory. */
-      return JX_OUT_OF_MEMORY;
-    }
+  newdata = realloc(*data, sz);
+  if (sz && NULL == newdata) {   /* requested a non-zero block and failed */
+    return JX_OUT_OF_MEMORY;
   } else {
-    JX_FREE_AND_NULL(*data);
-    return JX_OK;   /* no memory requested: NULL array. */
+    *data = newdata;
+    return JX_OK;
   }
 }
+
+void jx_set_item(jx_outptr out_ptr, void *item) {
+  if (out_ptr) { /* if NULL, they don't want the reference passed out */
+    *(void**)out_ptr = item;
+  }
+}
+
+/******************************************************************************/
 
 #ifdef JX_TESTING
 

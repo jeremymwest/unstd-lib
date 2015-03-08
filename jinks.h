@@ -21,12 +21,6 @@
 */
 
 /******************************************************************************/
-
-/* Memory management */
-typedef void (*jx_destructor)(void *item);
-void jx_destroy(jx_destructor dstr, void *item);
-
-/******************************************************************************/
 /* Error codes: The library is designed to minimize the number of functions
  * that may return an error and to minimize the amount of error checking done
  * in release builds. Anything that violates the contract of a function (such
@@ -51,7 +45,7 @@ void jx_destroy(jx_destructor dstr, void *item);
  * kind of printable, human-readable error message indicating what has gone
  * wrong. But the message is not context-sensitive, it is just a constant
  * string that depends only on the error code.
- */
+ ******************************************************************************/
 
 typedef enum {
   JX_OK = 0,
@@ -60,7 +54,13 @@ typedef enum {
 
 const char* jx_get_error_message(jx_result result);
 
-/******************************************************************************
+/******************************************************************************/
+
+typedef void *jx_outptr;
+
+typedef void (*jx_destructor)(void *item);
+
+/*******************************************************************************
  * Type definitions
  *
  * Ideally, users of this library would ignore these details. They are
@@ -72,11 +72,10 @@ const char* jx_get_error_message(jx_result result);
  *
  * In short, treat the types as opaque and use the library via the functions
  * defined in the various header files. Those define the public interface.
- *
- *****************************************************************************/
+ ******************************************************************************/
 
 typedef struct {
-  size_t size;
+  int size;
   void *data;
 } jx_buffer;
 
@@ -85,7 +84,7 @@ typedef struct {
     bool free_item;
     int refs;
     void *item;
-    jx_destructor dstr;
+    jx_destructor destroy;
   } *data;
 } jx_pointer;
 
@@ -93,6 +92,13 @@ typedef struct {
   int start, stride, count;
   jx_pointer ptr;
 } jx_slice;
+
+typedef struct {
+  size_t itemsize;
+  int count;
+  jx_destructor destroy;
+  jx_buffer buffer;
+} jx_vector;
 
 /******************************************************************************/
 
@@ -113,7 +119,7 @@ typedef struct {
 #define JX_POSITIVE(x) assert(x > 0 && "Argument must be positive.")
 #define JX_NOT_NEG(x) assert(x >= 0 && "Argument can't be negative.")
 #define JX_ARRAY_SZ(sz, arr) \
-  JX_NOT_NEG(sz); assert((sz == 0) == (arr == NULL) && \
+  JX_NOT_NEG(sz); assert(((sz == 0) || (arr != NULL)) && \
     "Invalid object: array size is incorrect.")
 
 /******************************************************************************/
@@ -122,7 +128,8 @@ typedef struct {
  * consumers. */
 
 /* zero out the contents of x (whatever its size) */
-#define JX_CLEAR(x) memset(x, 0, sizeof *x);
+#define JX_CLEAR(x) \
+  memset(x, 0, sizeof *x)
 
 #define JX_FREE_AND_NULL(ptr) \
   free(ptr); ptr = NULL
@@ -139,7 +146,14 @@ typedef struct {
   } \
 }
 
-jx_result jx_alloc(void **data, size_t sz);
+#define JX_SET(out_ptr, val) \
+  if (NULL != out_ptr) { \
+    *(void**)out_ptr = (val); \
+  }
+
+void jx_destroy(jx_destructor destroy, void *item);
+
+void jx_destroy_range(jx_destructor destroy, int count, size_t sz, void *items);
 
 /******************************************************************************/
 
@@ -164,13 +178,15 @@ extern const jx_test JX_PASS;
 #define JX_FAIL(msg) \
   JX_EXPECT(false, msg)
 
+#define JX_CATCH(stmt) \
+  JX_EXPECT(JX_OK == stmt, "Unexpected error occurred.")
+
 struct unit_test {
   const char *name;
   jx_test (*func)(void);
 };
 
-#endif
+#endif  /* #ifdef JX_TESTING */
+#endif  /* header guard */
 
-
-#endif
 
