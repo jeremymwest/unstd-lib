@@ -24,3 +24,8 @@ list_of_tests.h
 *.exe
 *.out
 *.app
+
+# Most hidden files
+.*
+!.gitignore
+
