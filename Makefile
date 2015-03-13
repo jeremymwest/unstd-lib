@@ -1,60 +1,73 @@
 
-CC=gcc
-CFLAGS=-c -Wall -I./
-SOURCES=$(wildcard src/*.c)
-OBJECTS=$(patsubst src/%.c,build/%.o,$(SOURCES))
-HEADERS=$(wildcard src/*.h)
 LIB=jinks
-HEADERS+=$(LIB).h
-TESTFLAGS=$(CFLAGS) -g -DJX_TESTING
-TEST_OBJS=$(patsubst src/%.c,build/%_test.o,$(SOURCES))
-TEST_OBJS+=build/unit_test_defs.o
+LIBFILE=build/lib$(LIB).a
+DEBUGLIB=$(LIB)-debug
+DEBUGLIBFILE=build/lib$(DEBUGLIB).a
+
+TESTHARNESS=build/$(LIB)_test
+
+CC=gcc
+CPP=g++
+CPPFLAGS=-c -Wall -I./ -g
+CFLAGS=-c -Wall -I./
+DEBUGFLAGS=$(CFLAGS) -g
 RELFLAGS=$(CFLAGS) -O3 -DNDEBUG
 
-.PHONY=clean test debug lib
+SOURCES=$(wildcard src/*.c)
+TESTS=$(wildcard tests/*.cc)
+TESTOBJS=$(patsubst tests/%.cc,build/%_test.o,$(TESTS))
+OBJECTS=$(patsubst src/%.c,build/%.o,$(SOURCES))
+DEBUGOBJS=$(patsubst src/%.c,build/%_debug.o,$(SOURCES))
+HEADERS=$(wildcard src/*.h)
 
-test : $(TEST_OBJS) build/$(LIB)_test
+HEADERS+=$(LIB).h
+
+.PHONY=clean test test-mem debug lib lib-debug
+
+all : lib lib-debug
+
+test : $(TESTHARNESS)
+	clear
+	$(TESTHARNESS)
+
+test-mem : $(TESTHARNESS)
 	clear  #this is a cheat to start the testing with a clean screen
-	-valgrind --leak-check=full --show-leak-kinds=all build/$(LIB)_test
+	-valgrind --leak-check=full --show-leak-kinds=all $(TESTHARNESS)
 
-debug: $(TEST_OBJS) build$(LIB)_test
-	gdb -tui build/$(LIB)_test
+debug : $(TESTHARNESS)
+	gdb -tui $(TESTHARNESS)
 
-lib: build/$(LIB).a
-	cp build/$(LIB).a ./$(LIB).a
+lib : $(LIBFILE)
+	cp $(LIBFILE) ./
 
-build/$(LIB).a : $(OBJECTS)
-	if [ ! -d ./build ]; then mkdir ./build; fi
-	ar -r build/$(LIB).a $(OBJECTS)
+lib-debug: $(DEBUGLIBFILE)
+	cp $(DEBUGLIBFILE) ./
+
+$(LIBFILE) : $(OBJECTS)
+	ar -r $(LIBFILE) $(OBJECTS)
+
+$(DEBUGLIBFILE) : $(DEBUGOBJS)
+	ar -r $(DEBUGLIBFILE) $(DEBUGOBJS)
+
+$(TESTHARNESS) : $(DEBUGLIBFILE) $(TESTOBJS)
+	$(CPP) -o $@ $(TESTOBJS) -Lbuild -l$(DEBUGLIB) -lgtest -lgtest_main -lpthread
 
 build/%.o : src/%.c $(HEADERS)
-	if [ ! -d ./build ]; then mkdir ./build; fi
+	@mkdir -p $(@D)
 	$(CC) $(RELFLAGS) -o $@ $<
 
-build/unit_test_defs.o : $(SOURCES)
-	if [ ! -d ./build ]; then mkdir ./build; fi
-	sed -n 's/^jx_test \(.*\)().*$$/\1/p' $(SOURCES) | sort | uniq > unit_tests.tmp
-	echo '#include "jx_private.h"' > build/unit_test_defs.c
-	sed -n 's/.*/jx_test &();/p' unit_tests.tmp >> build/unit_test_defs.c
-	echo "" >> build/unit_test_defs.c
-	echo "const struct unit_test all_tests[] = {" >> build/unit_test_defs.c
-	sed -n 's/.*/  \{ \"&\", & \},/p' unit_tests.tmp >> build/unit_test_defs.c
-	echo "};" >> build/unit_test_defs.c
-	echo "" >> build/unit_test_defs.c
-	echo "const int num_of_tests = sizeof(all_tests) / sizeof(struct unit_test);" >> build/unit_test_defs.c
-	rm unit_tests.tmp
-	$(CC) $(TESTFLAGS) -I./src -o build/unit_test_defs.o build/unit_test_defs.c
+build/%_debug.o : src/%.c $(HEADERS)
+	@mkdir -p $(@D)
+	$(CC) $(DEBUGFLAGS) -o $@ $<
+
+build/%_test.o : tests/%.cc $(HEADERS)
+	@mkdir -p $(@D)
+	$(CPP) $(CPPFLAGS) -o $@ $<
 
 clean: 
-	if [ -d ./build ]; then rm -r ./build; fi
-	if [ -e ./$(LIB).a ]; then rm ./$(LIB).a; fi
+	-rm -r ./build
+	-rm *.a
 
-build/%_test.o : src/%.c $(HEADERS)
-	if [ ! -d ./build ]; then mkdir ./build; fi
-	$(CC) $(TESTFLAGS) -o $@ $<
 
-build/$(LIB)_test : $(TEST_OBJS)
-	if [ ! -d ./build ]; then mkdir ./build; fi
-	gcc -o build/$(LIB)_test $(TEST_OBJS)
 
 
