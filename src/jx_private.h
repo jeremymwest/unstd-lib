@@ -25,9 +25,11 @@
 /******************************************************************************/
 /* internal/private functions */
 
-void* jxp_alloc_exactly(void *dataptr, size_t sz);
+void* jxp_alloc_exactly(void *ptr, size_t sz);
 
-void* jxp_alloc_atleast(void *dataptr, size_t sz);
+void* jxp_alloc_atleast(void *ptr, size_t sz);
+
+void* jxp_reserve(void *ptr, size_t *ref_cap, size_t required);
 
 int jxp_wrap_index(int i, int size);
 

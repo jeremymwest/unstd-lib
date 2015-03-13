@@ -22,15 +22,15 @@ HEADERS=$(wildcard src/*.h)
 
 HEADERS+=$(LIB).h
 
-.PHONY=clean test test-mem debug lib lib-debug
+.PHONY=clean test test-no-mem debug lib lib-debug
 
 all : lib lib-debug
 
-test : $(TESTHARNESS)
+test-no-mem : $(TESTHARNESS)
 	clear
 	$(TESTHARNESS)
 
-test-mem : $(TESTHARNESS)
+test : $(TESTHARNESS)
 	clear  #this is a cheat to start the testing with a clean screen
 	-valgrind --leak-check=full --show-leak-kinds=all $(TESTHARNESS)
 

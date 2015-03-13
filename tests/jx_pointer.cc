@@ -38,7 +38,7 @@ class PointerTest : public ::testing::Test {
     }
 };
 
-TEST_F(PointerTest, CreateAndRelease) {
+TEST_F(PointerTest, InitAndDestroy) {
   ASSERT_TRUE(NULL != p.item);
   jx_pointer_destroy(&p);
 

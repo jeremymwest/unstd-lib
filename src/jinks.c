@@ -43,5 +43,15 @@ int jxp_wrap_index(int i, int size) {
   return i >= 0 ? i : i + size;
 }
 
+void* jxp_reserve(void *ptr, size_t *ref_cap, size_t required) {
+  JX_NOT_NULL(ref_cap);
+  if (*ref_cap < required) {
+    /* required must be at least one  */
+    *ref_cap = 1;
+    while (*ref_cap < required) *ref_cap <<= 1;
+    ptr = jxp_alloc_exactly(ptr, *ref_cap);
+  }
+  return ptr;
+}
 
 

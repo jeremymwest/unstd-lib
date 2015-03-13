@@ -4,6 +4,9 @@
  *
  ******************************************************************************/
 #include "jx_private.h"
+#define VALID(self) \
+  assert(self && self->_ptr.item && self->_stride != 0 && self->itemsize > 0 && \
+      "The slice is not in a valid state.")
 
 void jx_slice_init(jx_slice *out_self, size_t itemsize, int num) {
   JX_NOT_NULL(out_self);
@@ -15,9 +18,12 @@ void jx_slice_init(jx_slice *out_self, size_t itemsize, int num) {
   out_self->_start = 0;
   out_self->_stride = 1;
   jx_pointer_init(&out_self->_ptr, num*itemsize, NULL);
+
+  VALID(out_self);
 }
 
 void jx_slice_clone(const jx_slice *self, jx_slice *out_clone) {
+  VALID(self);
   JX_NOT_NULL(out_clone);
 
   out_clone->size = self->size;
@@ -27,6 +33,7 @@ void jx_slice_clone(const jx_slice *self, jx_slice *out_clone) {
 
   /* clone the smart pointer for the underyling array */
   jx_pointer_clone(&self->_ptr, &out_clone->_ptr);
+  VALID(out_clone);
 }
 
 void jx_slice_destroy(void *slice) {
@@ -41,7 +48,7 @@ void jx_slice_destroy(void *slice) {
 void* jx_slice_at(const jx_slice *self, int i) {
   unsigned char *arr;
   size_t pos;
-  JX_NOT_NULL(self);
+  VALID(self);
   i = jxp_wrap_index(i, self->size);
   arr = self->_ptr.item;
   pos = self->itemsize*(self->_start + i*self->_stride);
@@ -51,8 +58,7 @@ void* jx_slice_at(const jx_slice *self, int i) {
 void jx_slice_reslice(const jx_slice *self, int start, int step, int num, 
     jx_slice *out_slice) {
   int last;
-
-  JX_NOT_NULL(self);
+  VALID(self);
   JX_NOT_NULL(out_slice);
 
   /* adjust the parameters so they are correct */
@@ -71,12 +77,14 @@ void jx_slice_reslice(const jx_slice *self, int start, int step, int num,
   out_slice->size = num;
   out_slice->_start = start;
   out_slice->_stride = step;
+
+  VALID(out_slice);
 }
 
 void jx_slice_copyto(const jx_slice *self, void *ref_array) {
   int i;
   unsigned char *arr = ref_array;
-  JX_NOT_NULL(self);
+  VALID(self);
   JX_NOT_NULL(ref_array);
   for (i = 0; i < self->size; ++i) {
     memcpy(&arr[i*self->itemsize], jx_slice_at(self, i), self->itemsize);
@@ -85,7 +93,7 @@ void jx_slice_copyto(const jx_slice *self, void *ref_array) {
 
 void* jx_slice_make_array(const jx_slice *self) {
   void *arr;
-  JX_NOT_NULL(self);
+  VALID(self);
   arr = jxp_alloc_exactly(NULL, self->size*self->itemsize);
   jx_slice_copyto(self, arr);
   return arr;

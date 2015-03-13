@@ -49,16 +49,19 @@ typedef struct {
 
 typedef struct {
   void *item;
-  const struct jx_spot_vtable *_vtable;
-  union {
-    int i;
-  } _info;
 } jx_spot;
 
 typedef struct {
   int size;
   size_t itemsize;
+  jx_destructor _destroy;
   const struct jx_list_vtable *_vtable;
+  union {
+    struct jxp_vector {
+      size_t cap;
+      unsigned char *array;
+    } vector;
+  } _impl;
 } jx_list;
 
 typedef struct {
@@ -83,6 +86,7 @@ typedef struct {
 /******************************************************************************/
 /* Interfaces */
 
+/******************************************************************************/
 /* smart pointers */
 
 void jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor destroy);
@@ -91,6 +95,7 @@ void jx_pointer_clone(const jx_pointer *self, jx_pointer *out_clone);
 
 void jx_pointer_destroy(void *pointer);
 
+/******************************************************************************/
 /* array slices */
 
 void jx_slice_init(jx_slice *out_self, size_t itemsize, int num);
@@ -108,47 +113,27 @@ void jx_slice_copyto(const jx_slice *self, void *ref_array);
 
 void* jx_slice_make_array(const jx_slice *self);
 
-/* spots */
-
-bool jx_next(jx_spot *spot);
-
-bool jx_prev(jx_spot *spot);
-
-void jx_remove(jx_spot *spot);
-
-int jx_indexof(const jx_spot *spot);
-
-const char *jx_stringkey(const jx_spot *spot);
-
-int *jx_intkey(const jx_spot *spot);
-
+/******************************************************************************/
 /* lists */
 
-void jx_list_clone(const jx_list *self, jx_list *out_clone);
+void jx_list_init_vector(jx_list *out_self, size_t isz, jx_destructor destroy);
 
 void jx_list_destroy(void *list);
 
-void* jx_list_front(const jx_list *self, jx_spot *out_spot);
+void* jx_list_at(const jx_list *self, int i);
 
-void* jx_list_back(const jx_list *self, jx_spot *out_spot);
+void* jx_list_append(jx_list *self);
 
-void* jx_list_at(const jx_list *self, int i, jx_spot *out_spot);
+void* jx_list_prepend(jx_list *self);
 
-void jx_list_prepend(jx_list *self, int num, jx_spot *out_spot);
+void* jx_list_insert(jx_list *self, int i);
 
-void jx_list_append(jx_list *self, int num, jx_spot *out_spot);
-
-void jx_list_insert(jx_list *self, int i, int num, jx_spot *out_spot);
-
-void jx_list_remove(jx_list *self, int i, int num);
-
-void jx_list_pop_back(jx_list *self, int num);
+void jx_list_remove(jx_list *self, int i);
 
 void jx_list_clear(jx_list *self);
 
+/******************************************************************************/
 /* integer maps */
-
-void jx_intmap_clone(const jx_intmap *self, jx_intmap *out_clone);
 
 void jx_intmap_destroy(void *intmap);
 
@@ -162,14 +147,15 @@ bool jx_intmap_remove(jx_intmap *self, int key);
 
 void jx_intmap_clear(jx_intmap *self);
 
+/******************************************************************************/
 /* string maps */
-
-void jx_stringmap_clone(const jx_stringmap *self, jx_stringmap *out_clone);
 
 void jx_stringmap_destroy(void *stringmap);
 
 bool jx_stringmap_find(const jx_stringmap *self, const char *key, 
     jx_spot *out_spot);
+
+bool jx_stringmap_add(jx_stringmap *self, const char *key, jx_spot *out_spot);
 
 bool jx_stringmap_put(jx_stringmap *self, const char *key, jx_spot *out_spot);
 
@@ -177,9 +163,8 @@ bool jx_stringmap_remove(jx_stringmap *self, const char* key);
 
 void jx_stringmap_clear(jx_stringmap *self);
 
+/******************************************************************************/
 /* queues */
-
-void jx_queue_clone(const jx_queue *self, jx_queue *out_clone);
 
 void jx_queue_destroy(void *queue);
 
