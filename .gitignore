@@ -1,7 +1,6 @@
 # Specific files
 tags
-jinks_test
-list_of_tests.h
+build
 
 # Editor files
 *.swp
