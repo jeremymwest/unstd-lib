@@ -49,7 +49,7 @@ void* jx_slice_at(const jx_slice *self, int i) {
   unsigned char *arr;
   size_t pos;
   VALID(self);
-  i = jxp_wrap_index(i, self->size);
+  i = jx_wrap_index(i, self->size);
   arr = self->_ptr.item;
   pos = self->itemsize*(self->_start + i*self->_stride);
   return &arr[pos];
@@ -63,7 +63,7 @@ void jx_slice_reslice(const jx_slice *self, int start, int step, int num,
 
   /* adjust the parameters so they are correct */
   num = num >= 0 ? num : self->size; /* if negative, take max possible size */
-  start = jxp_wrap_index(start, self->size);
+  start = jx_wrap_index(start, self->size);
   last = start + step * (num - 1);
   if (last < 0) {
     num = -start / step + 1;
@@ -94,7 +94,7 @@ void jx_slice_copyto(const jx_slice *self, void *ref_array) {
 void* jx_slice_make_array(const jx_slice *self) {
   void *arr;
   VALID(self);
-  arr = jxp_alloc_exactly(NULL, self->size*self->itemsize);
+  arr = jx_alloc_exactly(NULL, self->size*self->itemsize);
   jx_slice_copyto(self, arr);
   return arr;
 }

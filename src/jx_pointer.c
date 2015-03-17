@@ -13,8 +13,8 @@
 void jx_pointer_init(jx_pointer *out_self, size_t sz, jx_destructor destroy) {
   JX_NOT_NULL(out_self);
 
-  out_self->_info = jxp_alloc_exactly(NULL, sizeof *out_self->_info);
-  out_self->item = jxp_alloc_exactly(NULL, sz);
+  out_self->_info = jx_alloc_exactly(NULL, sizeof *out_self->_info);
+  out_self->item = jx_alloc_exactly(NULL, sz);
   out_self->_info->destroy = destroy;
   out_self->_info->refs = 1;
 

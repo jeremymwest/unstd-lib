@@ -48,16 +48,12 @@ typedef struct {
 } jx_slice;
 
 typedef struct {
-  void *item;
-} jx_spot;
-
-typedef struct {
   int size;
   size_t itemsize;
   jx_destructor _destroy;
   const struct jx_list_vtable *_vtable;
   union {
-    struct jxp_vector {
+    struct jx_vector {
       size_t cap;
       unsigned char *array;
     } vector;
@@ -67,7 +63,18 @@ typedef struct {
 typedef struct {
   int size;
   size_t itemsize;
+  jx_destructor _destroy;
   const struct jx_intmap_vtable *_vtable;
+  union {
+    struct jx_inthash {
+      int table_size;
+      struct jx_inthash_bucket {
+        int key, size;
+        size_t cap;
+        void* items;
+      } *buckets;
+    } hashtable;
+  } _impl;
 } jx_intmap;
 
 typedef struct {
@@ -82,9 +89,6 @@ typedef struct {
   void *next;
   const struct jx_queue_vtable *_vtable;
 } jx_queue;
-
-/******************************************************************************/
-/* Interfaces */
 
 /******************************************************************************/
 /* smart pointers */
@@ -135,13 +139,16 @@ void jx_list_clear(jx_list *self);
 /******************************************************************************/
 /* integer maps */
 
+void jx_intmap_init_hashtable(jx_intmap *out_self, size_t isz, 
+    jx_destructor destroy);
+
 void jx_intmap_destroy(void *intmap);
 
-bool jx_intmap_find(const jx_intmap *self, int key, jx_spot *out_spot);
+void* jx_intmap_find(const jx_intmap *self, int key);
 
-bool jx_intmap_add(jx_intmap *self, int key, jx_spot *out_spot);
+void* jx_intmap_add(jx_intmap *self, int key);
 
-bool jx_intmap_put(jx_intmap *self, int key, jx_spot *out_spot);
+void* jx_intmap_put(jx_intmap *self, int key, bool *out_isnew);
 
 bool jx_intmap_remove(jx_intmap *self, int key);
 
@@ -152,12 +159,11 @@ void jx_intmap_clear(jx_intmap *self);
 
 void jx_stringmap_destroy(void *stringmap);
 
-bool jx_stringmap_find(const jx_stringmap *self, const char *key, 
-    jx_spot *out_spot);
+void* jx_stringmap_find(const jx_stringmap *self, const char *key); 
 
-bool jx_stringmap_add(jx_stringmap *self, const char *key, jx_spot *out_spot);
+void* jx_stringmap_add(jx_stringmap *self, const char *key);
 
-bool jx_stringmap_put(jx_stringmap *self, const char *key, jx_spot *out_spot);
+void* jx_stringmap_put(jx_stringmap *self, const char *key, bool *out_isnew);
 
 bool jx_stringmap_remove(jx_stringmap *self, const char* key);
 
@@ -168,10 +174,9 @@ void jx_stringmap_clear(jx_stringmap *self);
 
 void jx_queue_destroy(void *queue);
 
-void jx_queue_push(jx_queue *self);
+void* jx_queue_push(jx_queue *self);
 
-void jx_queue_pop(jx_queue *self);
-
+bool jx_queue_pop(jx_queue *self);
 
 #endif  /* header guard */
 

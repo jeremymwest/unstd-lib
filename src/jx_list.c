@@ -29,7 +29,7 @@ void jx_list_destroy(void *list) {
 
 void* jx_list_at(const jx_list *self, int i) {
   VALID(self);
-  i = jxp_wrap_index(i, self->size);
+  i = jx_wrap_index(i, self->size);
   return self->_vtable->at(self, i);
 }
 
@@ -50,13 +50,13 @@ void* jx_list_insert(jx_list *self, int i) {
   } else if (i == self->size) {
     return jx_list_append(self);
   } else {
-    return self->_vtable->insert(self, jxp_wrap_index(i, self->size));
+    return self->_vtable->insert(self, jx_wrap_index(i, self->size));
   }
 }
 
 void jx_list_remove(jx_list *self, int i) {
   VALID(self);
-  i = jxp_wrap_index(i, self->size);
+  i = jx_wrap_index(i, self->size);
   self->_vtable->remove(self, i);
 }
 
@@ -70,27 +70,27 @@ void jx_list_clear(jx_list *self) {
 /* Vector Implementation */
 
 static void jx_vector_finalize(jx_list *self) {
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   free(vector->array);
 }
 
 static void* jx_vector_at(const jx_list *self, int i) {
-  const struct jxp_vector *vector = &self->_impl.vector;
+  const struct jx_vector *vector = &self->_impl.vector;
   return &vector->array[i*self->itemsize];
 }
 
 static void* jx_vector_append(jx_list *self) {    
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   size_t req = ++self->size * self->itemsize;
-  vector->array = jxp_reserve(vector->array, &vector->cap, req);
+  vector->array = jx_reserve(vector->array, &vector->cap, req);
   return &vector->array[req - self->itemsize];
 }
 
 static void* jx_vector_prepend(jx_list *self) {
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   size_t sz = self->size++ * self->itemsize;
   size_t req = sz + self->itemsize;
-  vector->array = jxp_reserve(vector->array, &vector->cap, req);
+  vector->array = jx_reserve(vector->array, &vector->cap, req);
   
   /* slide everything over */
   if (sz) {
@@ -101,19 +101,19 @@ static void* jx_vector_prepend(jx_list *self) {
 }
 
 static void* jx_vector_insert(jx_list *self, int i) {
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   /* bytes to slide over for insert */
   size_t move = (self->size - i) * self->itemsize;
   size_t req = ++self->size * self->itemsize;
   unsigned char *loc;
-  vector->array = jxp_reserve(vector->array, &vector->cap, req);
+  vector->array = jx_reserve(vector->array, &vector->cap, req);
   loc = &vector->array[i * self->itemsize];
   memmove(loc + self->itemsize, loc, move);
   return loc;
 }
 
 static void jx_vector_remove(jx_list *self, int i) {
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   /* item to delete */
   unsigned char *loc = &vector->array[i * self->itemsize];
   /* call destructor */
@@ -129,7 +129,7 @@ static void jx_vector_remove(jx_list *self, int i) {
 }
 
 static void jx_vector_clear(jx_list *self) {
-  struct jxp_vector *vector = &self->_impl.vector;
+  struct jx_vector *vector = &self->_impl.vector;
   /* if there is a destructor, call it on each item */
   if (self->_destroy) {
     unsigned char *item = vector->array;
@@ -154,7 +154,7 @@ static const struct jx_list_vtable jx_vector_vtable = {
 };
 
 void jx_list_init_vector(jx_list *out_self, size_t isz, jx_destructor destroy) {
-  struct jxp_vector *vector = &out_self->_impl.vector;
+  struct jx_vector *vector = &out_self->_impl.vector;
   JX_NOT_NULL(out_self);
   JX_POSITIVE(isz);
 
